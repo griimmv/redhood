@@ -1,0 +1,16 @@
+[Unit]
+Description=RedHood - Telegram notification bot for Reddit & X/Twitter
+After=network.target
+
+[Service]
+Type=simple
+User=%u
+WorkingDirectory=/opt/redhood
+Environment=CONFIG_PATH=/opt/redhood/config.toml
+Environment=RUST_LOG=info
+ExecStart=/opt/redhood/redhood
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
