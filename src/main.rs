@@ -34,9 +34,16 @@ async fn main() -> anyhow::Result<()> {
         paused: AtomicBool::new(false),
     });
 
-    tracing::info!("RedHood starting...");
+    let mut handle = tokio::spawn(bot::run(state));
 
-    bot::run(state).await?;
+    tokio::select! {
+        result = &mut handle => result??,
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("Shutdown received, stopping...");
+            handle.abort();
+        }
+    }
 
+    tracing::info!("RedHood stopped");
     Ok(())
 }
