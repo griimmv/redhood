@@ -58,14 +58,9 @@ pub async fn run(state: Arc<AppState>, bot: Bot) {
 async fn poll_reddit(
     state: &Arc<AppState>,
     bot: &Bot,
-    _auth: &RedditAuth,
+    auth: &RedditAuth,
 ) -> anyhow::Result<()> {
-    let auth_for_blocking = RedditAuth::new(
-        &state.config.reddit.client_id,
-        &state.config.reddit.client_secret,
-        &state.config.reddit.username,
-        &state.config.reddit.password,
-    );
+    let auth_for_blocking = auth.clone();
     let notifications = tokio::task::spawn_blocking(move || {
         let inbox = RedditInbox::new(&auth_for_blocking);
         inbox.fetch_unread()
@@ -81,7 +76,7 @@ async fn poll_reddit(
         return Ok(());
     }
 
-    let mut sent_ids = Vec::new();
+    let mut sent_ids: Vec<(String, String)> = Vec::new();
 
     for notif in &new_notifications {
         let dedup_key = format!("reddit_{}", notif.id);
@@ -103,7 +98,7 @@ async fn poll_reddit(
         match bot.send_message(owner, &text).await {
             Ok(_) => {
                 state.db.mark_notification_sent(&dedup_key, "reddit")?;
-                sent_ids.push(notif.id.clone());
+                sent_ids.push((notif.kind.clone(), notif.id.clone()));
                 tracing::info!("Sent Reddit notification: {}", notif.id);
             }
             Err(e) => {
@@ -113,12 +108,7 @@ async fn poll_reddit(
     }
 
     if !sent_ids.is_empty() {
-        let auth_clone = RedditAuth::new(
-            &state.config.reddit.client_id,
-            &state.config.reddit.client_secret,
-            &state.config.reddit.username,
-            &state.config.reddit.password,
-        );
+        let auth_clone = auth.clone();
         tokio::task::spawn_blocking(move || {
             let inbox = RedditInbox::new(&auth_clone);
             inbox.mark_read(&sent_ids)
@@ -143,7 +133,7 @@ async fn poll_twitter(
         return Ok(());
     }
 
-    let mut latest_id: Option<String> = None;
+    let mut all_successful = true;
 
     for tweet in &results {
         let dedup_key = format!("twitter_{}", tweet.id);
@@ -165,16 +155,18 @@ async fn poll_twitter(
             Ok(_) => {
                 state.db.mark_notification_sent(&dedup_key, "twitter")?;
                 tracing::info!("Sent tweet notification: {}", tweet.id);
-                latest_id = Some(tweet.id.clone());
             }
             Err(e) => {
                 tracing::error!("Failed to send tweet notification: {e}");
+                all_successful = false;
             }
         }
     }
 
-    if let Some(ref id) = latest_id {
-        state.db.set_state("twitter_since_id", id)?;
+    if all_successful
+        && let Some(newest) = results.first()
+    {
+        state.db.set_state("twitter_since_id", &newest.id)?;
     }
 
     Ok(())

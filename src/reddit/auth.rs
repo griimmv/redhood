@@ -18,9 +18,22 @@ pub struct RedditAuth {
     token: Mutex<Option<TokenCache>>,
 }
 
+#[derive(Clone)]
 struct TokenCache {
     access_token: String,
     expires_at: std::time::Instant,
+}
+
+impl Clone for RedditAuth {
+    fn clone(&self) -> Self {
+        Self {
+            client_id: self.client_id.clone(),
+            client_secret: self.client_secret.clone(),
+            username: self.username.clone(),
+            password: self.password.clone(),
+            token: Mutex::new(None),
+        }
+    }
 }
 
 impl RedditAuth {

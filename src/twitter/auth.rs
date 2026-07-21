@@ -5,11 +5,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha1 = Hmac<Sha1>;
 
+#[derive(Clone)]
 pub struct TwitterAuth {
     api_key: String,
     api_secret_key: String,
     access_token: String,
     access_token_secret: String,
+    client: reqwest::Client,
 }
 
 impl TwitterAuth {
@@ -24,11 +26,8 @@ impl TwitterAuth {
             api_secret_key: api_secret_key.to_string(),
             access_token: access_token.to_string(),
             access_token_secret: access_token_secret.to_string(),
+            client: reqwest::Client::new(),
         }
-    }
-
-    pub fn get_client(&self) -> reqwest::Client {
-        reqwest::Client::new()
     }
 
     pub fn sign_request(
@@ -37,8 +36,7 @@ impl TwitterAuth {
         url: &str,
         params: &[(&str, &str)],
     ) -> Result<reqwest::RequestBuilder, reqwest::Error> {
-        let client = self.get_client();
-        let builder = client.request(method.clone(), url);
+        let builder = self.client.request(method.clone(), url);
 
         let oauth_nonce = generate_nonce();
         let oauth_timestamp = SystemTime::now()
