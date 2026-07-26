@@ -60,7 +60,7 @@ impl Config {
         let tg = &self.telegram;
         anyhow::ensure!(!tg.bot_token.is_empty(), "telegram.bot_token must not be empty");
         anyhow::ensure!(tg.owner_chat_id > 0, "telegram.owner_chat_id must be positive");
-
+        anyhow::ensure!(!Self::is_placeholder(&tg.bot_token), "telegram.bot_token is still a placeholder value");
         if let Some(ref r) = self.reddit {
             anyhow::ensure!(r.poll_interval_secs > 0, "reddit.poll_interval_secs must be > 0");
         }
