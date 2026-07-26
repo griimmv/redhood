@@ -53,9 +53,12 @@ pub async fn run(state: Arc<AppState>, bot: Bot) {
     tracing::info!("Poller started with {} source(s)", handles.len());
 
     for handle in handles {
-        let _ = handle.await;
+        if let Err(error) = handle.await {
+           tracing::error!("Poller task terminated: {error}");
+        }
     }
 }
+
 
 async fn reddit_poll_loop(state: Arc<AppState>, bot: Bot, auth: RedditAuth, interval: Duration) {
     let mut timer = tokio::time::interval(interval);
@@ -84,7 +87,7 @@ async fn twitter_poll_loop(state: Arc<AppState>, bot: Bot, auth: TwitterAuth, in
 async fn poll_reddit(
     state: &Arc<AppState>,
     bot: &Bot,
-    auth: &RedditAuth,
+    auth: &Arc<RedditAuth>,
 ) -> anyhow::Result<()> {
     let auth_for_blocking = auth.clone();
     let notifications = tokio::task::spawn_blocking(move || {
