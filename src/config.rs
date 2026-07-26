@@ -4,8 +4,8 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub telegram: TelegramConfig,
-    pub reddit: RedditConfig,
-    pub twitter: TwitterConfig,
+    pub reddit: Option<RedditConfig>,
+    pub twitter: Option<TwitterConfig>,
     pub database: DatabaseConfig,
     pub webhook: WebhookConfig,
 }
@@ -52,5 +52,31 @@ impl Config {
         let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".into());
         let content = std::fs::read_to_string(&path)?;
         Ok(toml::from_str(&content)?)
+    }
+
+    pub fn is_placeholder(s: &str) -> bool {
+        s.starts_with("YOUR_")
+    }
+
+    pub fn telegram_ok(&self) -> bool {
+        !Self::is_placeholder(&self.telegram.bot_token)
+    }
+
+    pub fn reddit_ok(&self) -> Option<bool> {
+        self.reddit.as_ref().map(|r| {
+            !Self::is_placeholder(&r.client_id)
+                && !Self::is_placeholder(&r.client_secret)
+                && !Self::is_placeholder(&r.username)
+                && !Self::is_placeholder(&r.password)
+        })
+    }
+
+    pub fn twitter_ok(&self) -> Option<bool> {
+        self.twitter.as_ref().map(|t| {
+            !Self::is_placeholder(&t.api_key)
+                && !Self::is_placeholder(&t.api_secret_key)
+                && !Self::is_placeholder(&t.access_token)
+                && !Self::is_placeholder(&t.access_token_secret)
+        })
     }
 }

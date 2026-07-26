@@ -13,43 +13,69 @@ use crate::twitter::mentions::TwitterMentions;
 use crate::AppState;
 
 pub async fn run(state: Arc<AppState>, bot: Bot) {
-    let reddit_auth = RedditAuth::new(
-        &state.config.reddit.client_id,
-        &state.config.reddit.client_secret,
-        &state.config.reddit.username,
-        &state.config.reddit.password,
-    );
+    let mut handles = Vec::new();
 
-    let twitter_auth = TwitterAuth::new(
-        &state.config.twitter.api_key,
-        &state.config.twitter.api_secret_key,
-        &state.config.twitter.access_token,
-        &state.config.twitter.access_token_secret,
-    );
+    if let Some(ref reddit_cfg) = state.config.reddit {
+        let auth = RedditAuth::new(
+            &reddit_cfg.client_id,
+            &reddit_cfg.client_secret,
+            &reddit_cfg.username,
+            &reddit_cfg.password,
+        );
+        let interval = Duration::from_secs(reddit_cfg.poll_interval_secs);
+        let state = state.clone();
+        let bot = bot.clone();
+        handles.push(tokio::spawn(async move {
+            reddit_poll_loop(state, bot, auth, interval).await;
+        }));
+    }
 
-    let reddit_interval = Duration::from_secs(state.config.reddit.poll_interval_secs);
-    let twitter_interval = Duration::from_secs(state.config.twitter.poll_interval_secs);
+    if let Some(ref twitter_cfg) = state.config.twitter {
+        let auth = TwitterAuth::new(
+            &twitter_cfg.api_key,
+            &twitter_cfg.api_secret_key,
+            &twitter_cfg.access_token,
+            &twitter_cfg.access_token_secret,
+        );
+        let interval = Duration::from_secs(twitter_cfg.poll_interval_secs);
+        let state = state.clone();
+        let bot = bot.clone();
+        handles.push(tokio::spawn(async move {
+            twitter_poll_loop(state, bot, auth, interval).await;
+        }));
+    }
 
-    let mut reddit_timer = tokio::time::interval(reddit_interval);
-    let mut twitter_timer = tokio::time::interval(twitter_interval);
+    if handles.is_empty() {
+        tracing::warn!("No pollers configured — add [reddit] and/or [twitter] sections to config.toml");
+        return;
+    }
 
-    tracing::info!("Poller started");
+    tracing::info!("Poller started with {} source(s)", handles.len());
 
+    for handle in handles {
+        let _ = handle.await;
+    }
+}
+
+async fn reddit_poll_loop(state: Arc<AppState>, bot: Bot, auth: RedditAuth, interval: Duration) {
+    let mut timer = tokio::time::interval(interval);
     loop {
-        tokio::select! {
-            _ = reddit_timer.tick() => {
-                if !state.paused.load(Ordering::SeqCst) {
-                    if let Err(e) = poll_reddit(&state, &bot, &reddit_auth).await {
-                        tracing::error!("Reddit poll error: {e:#}");
-                    }
-                }
+        timer.tick().await;
+        if !state.paused.load(Ordering::SeqCst) {
+            if let Err(e) = poll_reddit(&state, &bot, &auth).await {
+                tracing::error!("Reddit poll error: {e:#}");
             }
-            _ = twitter_timer.tick() => {
-                if !state.paused.load(Ordering::SeqCst) {
-                    if let Err(e) = poll_twitter(&state, &bot, &twitter_auth).await {
-                        tracing::error!("Twitter poll error: {e:#}");
-                    }
-                }
+        }
+    }
+}
+
+async fn twitter_poll_loop(state: Arc<AppState>, bot: Bot, auth: TwitterAuth, interval: Duration) {
+    let mut timer = tokio::time::interval(interval);
+    loop {
+        timer.tick().await;
+        if !state.paused.load(Ordering::SeqCst) {
+            if let Err(e) = poll_twitter(&state, &bot, &auth).await {
+                tracing::error!("Twitter poll error: {e:#}");
             }
         }
     }
@@ -124,8 +150,15 @@ async fn poll_twitter(
     bot: &Bot,
     auth: &TwitterAuth,
 ) -> anyhow::Result<()> {
+    let user_id = state
+        .config
+        .twitter
+        .as_ref()
+        .map(|t| t.user_id.clone())
+        .unwrap_or_default();
+
     let since_id = state.db.get_state("twitter_since_id")?;
-    let mentions = TwitterMentions::new(auth, &state.config.twitter.user_id);
+    let mentions = TwitterMentions::new(auth, &user_id);
 
     let results = mentions.fetch_mentions(since_id.as_deref()).await?;
 

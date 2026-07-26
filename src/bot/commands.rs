@@ -44,19 +44,53 @@ async fn cmd_start(bot: Bot, msg: Message, _state: Arc<AppState>) {
 }
 
 async fn cmd_status(bot: Bot, msg: Message, state: Arc<AppState>) {
+    use crate::config::Config;
+
     let paused = if state.paused.load(Ordering::SeqCst) { "PAUSED" } else { "ACTIVE" };
-    let reddit_interval = state.config.reddit.poll_interval_secs;
-    let twitter_interval = state.config.twitter.poll_interval_secs;
+
+    let reddit_line = match &state.config.reddit {
+        Some(cfg) => format!("Reddit poll: every {}s", cfg.poll_interval_secs),
+        None => "Reddit poll: not configured".to_string(),
+    };
+
+    let twitter_line = match &state.config.twitter {
+        Some(cfg) => format!("Twitter poll: every {}s", cfg.poll_interval_secs),
+        None => "Twitter poll: not configured".to_string(),
+    };
+
+    let credentials_text = {
+        let telegram_status = if Config::telegram_ok(&state.config) { "\u{2705}" } else { "\u{26A0}\u{FE0F} placeholders detected" };
+        let reddit_status = match state.config.reddit_ok() {
+            Some(true) => "\u{2705}".to_string(),
+            Some(false) => "\u{26A0}\u{FE0F} placeholders detected".to_string(),
+            None => "\u{274C} section missing".to_string(),
+        };
+        let twitter_status = match state.config.twitter_ok() {
+            Some(true) => "\u{2705}".to_string(),
+            Some(false) => "\u{26A0}\u{FE0F} placeholders detected".to_string(),
+            None => "\u{274C} section missing".to_string(),
+        };
+
+        format!(
+            "\n\n\
+             \u{26A0}\u{FE0F} Credentials\n\n\
+             Telegram  {telegram_status}\n\
+             Reddit    {reddit_status}\n\
+             Twitter   {twitter_status}"
+        )
+    };
 
     let text = format!(
         "\u{2139} RedHood Status\n\n\
-        Status: {paused}\n\
-        Reddit poll: every {reddit_interval}s\n\
-        Twitter poll: every {twitter_interval}s\n\
-        Owner chat: {}\n\
-        DB: {}",
+         Status: {paused}\n\
+         {reddit_line}\n\
+         {twitter_line}\n\
+         Owner chat: {}\n\
+         DB: {}\
+         {}",
         state.config.telegram.owner_chat_id,
         state.config.database.path,
+        credentials_text,
     );
 
     let _ = bot.send_message(msg.chat.id, text).await;
