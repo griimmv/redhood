@@ -51,7 +51,33 @@ impl Config {
     pub fn load() -> Result<Self> {
         let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".into());
         let content = std::fs::read_to_string(&path)?;
-        Ok(toml::from_str(&content)?)
+        let cfg: Self = toml::from_str(&content)?;
+        cfg.validate()?;
+        Ok(cfg)
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        let tg = &self.telegram;
+        anyhow::ensure!(!tg.bot_token.is_empty(), "telegram.bot_token must not be empty");
+        anyhow::ensure!(tg.owner_chat_id > 0, "telegram.owner_chat_id must be positive");
+
+        if let Some(ref r) = self.reddit {
+            anyhow::ensure!(r.poll_interval_secs > 0, "reddit.poll_interval_secs must be > 0");
+        }
+
+        if let Some(ref t) = self.twitter {
+            anyhow::ensure!(t.poll_interval_secs > 0, "twitter.poll_interval_secs must be > 0");
+        }
+
+        anyhow::ensure!(!self.database.path.is_empty(), "database.path must not be empty");
+
+        anyhow::ensure!(!self.webhook.host.is_empty(), "webhook.host must not be empty");
+        anyhow::ensure!(self.webhook.port > 0, "webhook.port must be > 0");
+        anyhow::ensure!(!self.webhook.public_url.is_empty(), "webhook.public_url must not be empty");
+        url::Url::parse(&self.webhook.public_url)
+            .map_err(|_| anyhow::anyhow!("webhook.public_url is not a valid URL: {}", self.webhook.public_url))?;
+
+        Ok(())
     }
 
     pub fn is_placeholder(s: &str) -> bool {
