@@ -6,8 +6,9 @@ use teloxide::dispatching::{Dispatcher, UpdateFilterExt};
 use teloxide::error_handlers::LoggingErrorHandler;
 use teloxide::prelude::*;
 use teloxide::update_listeners::webhooks;
+use tokio::sync::watch;
 
-pub async fn run(state: Arc<AppState>) -> anyhow::Result<()> {
+pub async fn run(state: Arc<AppState>, mut shutdown: watch::Receiver<bool>) -> anyhow::Result<()> {
     let bot = Bot::new(&state.config.telegram.bot_token);
 
     let addr: std::net::SocketAddr = format!(
@@ -27,17 +28,19 @@ pub async fn run(state: Arc<AppState>) -> anyhow::Result<()> {
 
     let bot_for_poller = bot.clone();
     let state_for_poller = state.clone();
+    let shutdown_poller = shutdown.clone();
     tokio::spawn(async move {
-        crate::poller::run(state_for_poller, bot_for_poller).await;
+        crate::poller::run(state_for_poller, bot_for_poller, shutdown_poller).await;
     });
 
     let mut dispatcher = Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![state])
         .build();
 
-    dispatcher
-        .dispatch_with_listener(listener, LoggingErrorHandler::new())
-        .await;
+    tokio::select! {
+        _ = dispatcher.dispatch_with_listener(listener, LoggingErrorHandler::new()) => {}
+        _ = shutdown.changed() => {}
+    }
 
     Ok(())
 }
