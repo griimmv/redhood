@@ -95,3 +95,18 @@ fn base64_encode(input: &str) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(input)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base64_encode_basic() {
+        assert_eq!(base64_encode("client:secret"), "Y2xpZW50OnNlY3JldA==");
+    }
+
+    #[test]
+    fn base64_encode_empty() {
+        assert_eq!(base64_encode(""), "");
+    }
+}
