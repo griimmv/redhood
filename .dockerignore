@@ -1,0 +1,5 @@
+.git/
+target/
+config.toml
+.env
+*.db
