@@ -45,11 +45,11 @@ pub async fn run(state: Arc<AppState>, mut shutdown: watch::Receiver<bool>) -> a
 
     let handler = Update::filter_message().endpoint(commands::handle_message);
 
+    let (poller_shutdown_tx, poller_shutdown_rx) = watch::channel(false);
     let bot_for_poller = bot.clone();
     let state_for_poller = state.clone();
-    let shutdown_poller = shutdown.clone();
-    tokio::spawn(async move {
-        crate::poller::run(state_for_poller, bot_for_poller, shutdown_poller).await;
+    let poller_handle = tokio::spawn(async move {
+        crate::poller::run(state_for_poller, bot_for_poller, poller_shutdown_rx).await;
     });
 
     let mut dispatcher = Dispatcher::builder(bot, handler)
@@ -57,10 +57,17 @@ pub async fn run(state: Arc<AppState>, mut shutdown: watch::Receiver<bool>) -> a
         .build();
 
     tokio::select! {
-        _ = dispatcher.dispatch_with_listener(listener, LoggingErrorHandler::new()) => {}
+        _ = dispatcher.dispatch_with_listener(listener, LoggingErrorHandler::new()) => {
+            stop_token.stop();
+        }
         _ = shutdown.changed() => {
             stop_token.stop();
         }
+    }
+
+    drop(poller_shutdown_tx);
+    if let Err(error) = poller_handle.await {
+        tracing::error!("Poller task terminated: {error}");
     }
 
     Ok(())
