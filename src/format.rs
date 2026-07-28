@@ -103,6 +103,8 @@ mod tests {
         let data = json!({});
         let result = format_reddit_message("t1", &data);
         assert!(result.contains("unknown"));
+        assert!(result.contains("https://reddit.com/r/unknown"));
+        assert!(!result.contains("{subreddit}"));
     }
 
     // ── format_tweet ──────────────────────────────────────────────────────
