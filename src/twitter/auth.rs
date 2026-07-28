@@ -129,3 +129,23 @@ fn encode(input: &str) -> String {
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_alpha_numeric() {
+        assert_eq!(encode("hello123"), "hello123");
+    }
+
+    #[test]
+    fn encode_spaces_and_symbols() {
+        assert_eq!(encode("a b&c"), "a%20b%26c");
+    }
+
+    #[test]
+    fn base64_encode_known() {
+        assert_eq!(base64_encode(b"test"), "dGVzdA==");
+    }
+}

@@ -65,3 +65,57 @@ impl Database {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn db() -> Database {
+        let db = Database::open(":memory:").unwrap();
+        db.migrate().unwrap();
+        db
+    }
+
+    #[test]
+    fn open_and_migrate() {
+        let db = Database::open(":memory:");
+        assert!(db.is_ok());
+        assert!(db.unwrap().migrate().is_ok());
+    }
+
+    #[test]
+    fn get_state_missing_key() {
+        let db = db();
+        let val = db.get_state("nonexistent").unwrap();
+        assert_eq!(val, None);
+    }
+
+    #[test]
+    fn set_state_roundtrip() {
+        let db = db();
+        db.set_state("k1", "v1").unwrap();
+        assert_eq!(db.get_state("k1").unwrap(), Some("v1".into()));
+    }
+
+    #[test]
+    fn set_state_overwrite() {
+        let db = db();
+        db.set_state("k", "old").unwrap();
+        db.set_state("k", "new").unwrap();
+        assert_eq!(db.get_state("k").unwrap(), Some("new".into()));
+    }
+
+    #[test]
+    fn is_notification_sent_absent() {
+        let db = db();
+        assert!(!db.is_notification_sent("nope").unwrap());
+    }
+
+    #[test]
+    fn mark_and_check_notification_sent() {
+        let db = db();
+        assert!(!db.is_notification_sent("msg_1").unwrap());
+        db.mark_notification_sent("msg_1", "reddit").unwrap();
+        assert!(db.is_notification_sent("msg_1").unwrap());
+    }
+}

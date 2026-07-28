@@ -106,3 +106,124 @@ impl Config {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_config() -> Config {
+        Config {
+            telegram: TelegramConfig {
+                bot_token: "123456:ABC-DEF1234ghIkl".into(),
+                owner_chat_id: 12345,
+            },
+            reddit: Some(RedditConfig {
+                client_id: "client".into(),
+                client_secret: "secret".into(),
+                username: "user".into(),
+                password: "pass".into(),
+                poll_interval_secs: 60,
+            }),
+            twitter: Some(TwitterConfig {
+                api_key: "key".into(),
+                api_secret_key: "secret".into(),
+                access_token: "token".into(),
+                access_token_secret: "tokensecret".into(),
+                user_id: "123".into(),
+                poll_interval_secs: 60,
+            }),
+            database: DatabaseConfig { path: "redhood.db".into() },
+            webhook: WebhookConfig {
+                host: "0.0.0.0".into(),
+                port: 8080,
+                public_url: "https://example.com".into(),
+            },
+        }
+    }
+
+    #[test]
+    fn validate_empty_bot_token() {
+        let mut cfg = base_config();
+        cfg.telegram.bot_token.clear();
+        assert!(cfg.validate().unwrap_err().to_string().contains("must not be empty"));
+    }
+
+    #[test]
+    fn validate_zero_owner_chat() {
+        let mut cfg = base_config();
+        cfg.telegram.owner_chat_id = 0;
+        assert!(cfg.validate().unwrap_err().to_string().contains("must be positive"));
+    }
+
+    #[test]
+    fn validate_negative_owner_chat() {
+        let mut cfg = base_config();
+        cfg.telegram.owner_chat_id = -1;
+        assert!(cfg.validate().unwrap_err().to_string().contains("must be positive"));
+    }
+
+    #[test]
+    fn validate_placeholder_bot_token() {
+        let mut cfg = base_config();
+        cfg.telegram.bot_token = "YOUR_TOKEN".into();
+        assert!(cfg.validate().unwrap_err().to_string().contains("placeholder"));
+    }
+
+    #[test]
+    fn validate_reddit_zero_interval() {
+        let mut cfg = base_config();
+        cfg.reddit.as_mut().unwrap().poll_interval_secs = 0;
+        assert!(cfg.validate().unwrap_err().to_string().contains("must be > 0"));
+    }
+
+    #[test]
+    fn validate_twitter_zero_interval() {
+        let mut cfg = base_config();
+        cfg.twitter.as_mut().unwrap().poll_interval_secs = 0;
+        assert!(cfg.validate().unwrap_err().to_string().contains("must be > 0"));
+    }
+
+    #[test]
+    fn validate_empty_db_path() {
+        let mut cfg = base_config();
+        cfg.database.path.clear();
+        assert!(cfg.validate().unwrap_err().to_string().contains("must not be empty"));
+    }
+
+    #[test]
+    fn validate_zero_port() {
+        let mut cfg = base_config();
+        cfg.webhook.port = 0;
+        assert!(cfg.validate().unwrap_err().to_string().contains("must be > 0"));
+    }
+
+    #[test]
+    fn validate_empty_webhook_host() {
+        let mut cfg = base_config();
+        cfg.webhook.host.clear();
+        assert!(cfg.validate().unwrap_err().to_string().contains("must not be empty"));
+    }
+
+    #[test]
+    fn validate_invalid_url() {
+        let mut cfg = base_config();
+        cfg.webhook.public_url = "not-a-url".into();
+        assert!(cfg.validate().unwrap_err().to_string().contains("not a valid URL"));
+    }
+
+    #[test]
+    fn validate_valid_config() {
+        let cfg = base_config();
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn is_placeholder_true() {
+        assert!(Config::is_placeholder("YOUR_TOKEN"));
+    }
+
+    #[test]
+    fn is_placeholder_false() {
+        assert!(!Config::is_placeholder("abc123"));
+    }
+}
