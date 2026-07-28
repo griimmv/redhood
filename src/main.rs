@@ -8,6 +8,7 @@ mod twitter;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use tokio::sync::watch;
 use tracing_subscriber::EnvFilter;
 
 pub struct AppState {
@@ -34,9 +35,18 @@ async fn main() -> anyhow::Result<()> {
         paused: AtomicBool::new(false),
     });
 
-    tracing::info!("RedHood starting...");
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let mut handle = tokio::spawn(bot::run(state, shutdown_rx));
 
-    bot::run(state).await?;
+    tokio::select! {
+        result = &mut handle => result??,
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("Shutdown received, stopping...");
+            drop(shutdown_tx);
+            handle.await??;
+        }
+    }
 
+    tracing::info!("RedHood stopped");
     Ok(())
 }

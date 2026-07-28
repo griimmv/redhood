@@ -11,8 +11,11 @@ A Telegram bot daemon that forwards **Reddit inbox messages** and **X/Twitter me
 - **Reddit API credentials** (script-type app)
 - **X/Twitter API credentials** (project with OAuth 1.0a)
 - `ngrok` (for local development) or a public HTTPS endpoint
+<br>
 
 ## Installation
+
+### Building it yourself
 
 ```bash
 # Clone or navigate to the project
@@ -24,6 +27,7 @@ cargo build --release
 # The binary will be at:
 ./target/release/redhood
 ```
+<br>
 
 ## Configuration
 
@@ -35,35 +39,6 @@ cp config.example.toml config.toml
 
 ### 2. Fill in `config.toml`
 
-```toml
-[telegram]
-bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-owner_chat_id = 123456789       # Your Telegram user ID
-
-[reddit]
-client_id = "YOUR_CLIENT_ID"
-client_secret = "YOUR_CLIENT_SECRET"
-username = "YOUR_REDDIT_USERNAME"
-password = "YOUR_REDDIT_PASSWORD"
-poll_interval_secs = 60
-
-[twitter]
-api_key = "YOUR_API_KEY"
-api_secret_key = "YOUR_API_SECRET"
-access_token = "YOUR_ACCESS_TOKEN"
-access_token_secret = "YOUR_ACCESS_TOKEN_SECRET"
-user_id = "YOUR_USER_ID"        # Numeric X/Twitter user ID
-poll_interval_secs = 60
-
-[database]
-path = "redhood.db"
-
-[webhook]
-host = "0.0.0.0"
-port = 8080
-public_url = "https://your-ngrok-url.ngrok.io"
-```
-
 ### 3. Set up environment (optional)
 
 ```bash
@@ -71,6 +46,7 @@ public_url = "https://your-ngrok-url.ngrok.io"
 RUST_LOG=info,redhood=debug
 CONFIG_PATH=config.toml
 ```
+<br>
 
 ## Getting API Credentials
 
@@ -92,6 +68,8 @@ CONFIG_PATH=config.toml
 2. Enable OAuth 1.0a with Read permissions
 3. Generate API Key + Secret and Access Token + Secret
 4. Find your numeric user ID (use a tool like https://tweeterid.com)
+<br><br>
+
 
 ## Running Locally (with ngrok)
 
@@ -123,25 +101,27 @@ sudo systemctl enable --now redhood
 # View logs
 sudo journalctl -u redhood -f
 ```
+<br><br>
+
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                    RedHood Daemon                     │
+│                    RedHood Daemon                    │
 │                                                      │
 │  ┌──────────┐   ┌──────────────────┐   ┌──────────┐  │
 │  │  axum    │   │   teloxide Bot   │   │  Poller  │  │
 │  │  Server  │   │   (Dispatcher)   │   │  Loop    │  │
 │  │  :8080   │   │                  │   │          │  │
 │  └────┬─────┘   └────────┬─────────┘   └────┬─────┘  │
-│       │                  │                   │        │
-│       │ Webhook          │ DM to owner       │ Poll   │
-│       ▼                  ▼                   ▼        │
-│  ┌──────────┐     ┌──────────┐     ┌──────────────┐   │
-│  │ Telegram │     │ Telegram │     │ Reddit API   │   │
-│  │ Updates  │     │ Messages │     │ X/Twitter API│   │
-│  └──────────┘     └──────────┘     └──────────────┘   │
+│       │                  │                  │        │
+│       │ Webhook          │ DM to owner      │ Poll   │
+│       ▼                  ▼                  ▼        │
+│  ┌──────────┐      ┌──────────┐    ┌──────────────┐  │
+│  │ Telegram │      │ Telegram │    │ Reddit API   │  │
+│  │ Updates  │      │ Messages │    │ X/Twitter API│  │
+│  └──────────┘      └──────────┘    └──────────────┘  │
 │                                                      │
 │  ┌──────────────────────────────────────────────┐    │
 │  │              SQLite (state.db)               │    │
@@ -150,6 +130,7 @@ sudo journalctl -u redhood -f
 │  └──────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────┘
 ```
+<br>
 
 ## Data Flow / Workflow
 
@@ -177,16 +158,6 @@ sudo journalctl -u redhood -f
 2. Sleep until next interval
 ```
 
-### Telegram Commands
-
-| Command | Action |
-|---|---|
-| `/start` | Welcome message |
-| `/status` | Show poll intervals, paused state, DB path |
-| `/pause` | Stop polling (notifications paused) |
-| `/resume` | Resume polling |
-| `/help` | List commands |
-
 ### Webhook Reception
 
 ```
@@ -198,6 +169,8 @@ Telegram ──POST /webhook──▶ ngrok ──▶ axum server ──▶ telo
                                                     └───────────┘
 ```
 
+<br>
+
 ## Telegram Bot Commands
 
 - `/start` – Welcome and overview
@@ -205,6 +178,7 @@ Telegram ──POST /webhook──▶ ngrok ──▶ axum server ──▶ telo
 - `/pause` – Pause all polling
 - `/resume` – Resume polling
 - `/help` – List commands
+<br>
 
 ## Project Structure
 
@@ -221,7 +195,7 @@ src/
 ├── reddit/
 │   ├── mod.rs
 │   ├── auth.rs        # OAuth2 password grant for Reddit API
-│   └── inbox.rs       # Fetch unread inbox, mark as read
+│   └── inbox.rs       # Fetch unread inbox, mark as read after
 └── twitter/
     ├── mod.rs
     ├── auth.rs        # OAuth 1.0a HMAC-SHA1 signing

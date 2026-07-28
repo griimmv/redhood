@@ -4,20 +4,22 @@ use serde_json::Value;
 
 pub struct RedditInbox<'a> {
     auth: &'a RedditAuth,
+    client: reqwest::blocking::Client,
 }
 
 impl<'a> RedditInbox<'a> {
     pub fn new(auth: &'a RedditAuth) -> Self {
-        Self { auth }
+        Self {
+            auth,
+            client: reqwest::blocking::Client::new(),
+        }
     }
 
     pub fn fetch_unread(&self) -> Result<Vec<RedditNotification>> {
         let token = self.auth.get_token()?;
-        let client = reqwest::blocking::Client::new();
-        let url = format!(
-            "https://oauth.reddit.com/api/v1/message/inbox?limit=25&mark=false"
-        );
-        let resp = client
+        let url = "https://oauth.reddit.com/api/v1/message/inbox?limit=25&mark=false".to_string();
+        let resp = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {token}"))
             .header("User-Agent", "linux:redhood:v0.1.0 (by /u/redhood)")
@@ -63,18 +65,18 @@ impl<'a> RedditInbox<'a> {
         Ok(notifications)
     }
 
-    pub fn mark_read(&self, ids: &[String]) -> Result<()> {
+    pub fn mark_read(&self, ids: &[(String, String)]) -> Result<()> {
         if ids.is_empty() {
             return Ok(());
         }
         let token = self.auth.get_token()?;
-        let client = reqwest::blocking::Client::new();
         let fullnames: Vec<String> = ids
             .iter()
-            .map(|id| format!("t4_{id}"))
+            .map(|(kind, id)| format!("{kind}_{id}"))
             .collect();
 
-        let resp = client
+        let resp = self
+            .client
             .post("https://oauth.reddit.com/api/read_message")
             .header("Authorization", format!("Bearer {token}"))
             .header("User-Agent", "linux:redhood:v0.1.0 (by /u/redhood)")

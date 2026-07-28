@@ -18,9 +18,22 @@ pub struct RedditAuth {
     token: Mutex<Option<TokenCache>>,
 }
 
+#[derive(Clone)]
 struct TokenCache {
     access_token: String,
     expires_at: std::time::Instant,
+}
+
+impl Clone for RedditAuth {
+    fn clone(&self) -> Self {
+        Self {
+            client_id: self.client_id.clone(),
+            client_secret: self.client_secret.clone(),
+            username: self.username.clone(),
+            password: self.password.clone(),
+            token: Mutex::new(None),
+        }
+    }
 }
 
 impl RedditAuth {
@@ -36,10 +49,10 @@ impl RedditAuth {
 
     pub fn get_token(&self) -> Result<String> {
         let mut cache = self.token.lock().unwrap();
-        if let Some(ref cached) = *cache {
-            if cached.expires_at > std::time::Instant::now() {
-                return Ok(cached.access_token.clone());
-            }
+        if let Some(ref cached) = *cache
+            && cached.expires_at > std::time::Instant::now()
+        {
+            return Ok(cached.access_token.clone());
         }
 
         let token = self.fetch_token()?;
@@ -81,4 +94,19 @@ impl RedditAuth {
 fn base64_encode(input: &str) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base64_encode_basic() {
+        assert_eq!(base64_encode("client:secret"), "Y2xpZW50OnNlY3JldA==");
+    }
+
+    #[test]
+    fn base64_encode_empty() {
+        assert_eq!(base64_encode(""), "");
+    }
 }
