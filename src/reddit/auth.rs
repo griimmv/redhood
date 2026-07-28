@@ -49,10 +49,10 @@ impl RedditAuth {
 
     pub fn get_token(&self) -> Result<String> {
         let mut cache = self.token.lock().unwrap();
-        if let Some(ref cached) = *cache {
-            if cached.expires_at > std::time::Instant::now() {
-                return Ok(cached.access_token.clone());
-            }
+        if let Some(ref cached) = *cache
+            && cached.expires_at > std::time::Instant::now()
+        {
+            return Ok(cached.access_token.clone());
         }
 
         let token = self.fetch_token()?;

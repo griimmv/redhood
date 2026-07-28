@@ -17,9 +17,7 @@ impl<'a> RedditInbox<'a> {
 
     pub fn fetch_unread(&self) -> Result<Vec<RedditNotification>> {
         let token = self.auth.get_token()?;
-        let url = format!(
-            "https://oauth.reddit.com/api/v1/message/inbox?limit=25&mark=false"
-        );
+        let url = "https://oauth.reddit.com/api/v1/message/inbox?limit=25&mark=false".to_string();
         let resp = self
             .client
             .get(&url)
