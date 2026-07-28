@@ -4,6 +4,7 @@ use std::time::Duration;
 use teloxide::requests::Requester;
 use teloxide::types::ChatId;
 use teloxide::Bot;
+use tokio::sync::watch;
 
 use crate::format;
 use crate::reddit::auth::RedditAuth;
@@ -12,7 +13,7 @@ use crate::twitter::auth::TwitterAuth;
 use crate::twitter::mentions::TwitterMentions;
 use crate::AppState;
 
-pub async fn run(state: Arc<AppState>, bot: Bot) {
+pub async fn run(state: Arc<AppState>, bot: Bot, shutdown: watch::Receiver<bool>) {
     let mut handles = Vec::new();
 
     if let Some(ref reddit_cfg) = state.config.reddit {
@@ -25,8 +26,9 @@ pub async fn run(state: Arc<AppState>, bot: Bot) {
         let interval = Duration::from_secs(reddit_cfg.poll_interval_secs);
         let state = state.clone();
         let bot = bot.clone();
+        let shutdown = shutdown.clone();
         handles.push(tokio::spawn(async move {
-            reddit_poll_loop(state, bot, auth, interval).await;
+            reddit_poll_loop(state, bot, auth, interval, shutdown).await;
         }));
     }
 
@@ -40,8 +42,9 @@ pub async fn run(state: Arc<AppState>, bot: Bot) {
         let interval = Duration::from_secs(twitter_cfg.poll_interval_secs);
         let state = state.clone();
         let bot = bot.clone();
+        let shutdown = shutdown.clone();
         handles.push(tokio::spawn(async move {
-            twitter_poll_loop(state, bot, auth, interval).await;
+            twitter_poll_loop(state, bot, auth, interval, shutdown).await;
         }));
     }
 
@@ -60,25 +63,55 @@ pub async fn run(state: Arc<AppState>, bot: Bot) {
 }
 
 
-async fn reddit_poll_loop(state: Arc<AppState>, bot: Bot, auth: RedditAuth, interval: Duration) {
+async fn reddit_poll_loop(
+    state: Arc<AppState>,
+    bot: Bot,
+    auth: RedditAuth,
+    interval: Duration,
+    shutdown: watch::Receiver<bool>,
+) {
     let mut timer = tokio::time::interval(interval);
+    let mut shutdown = shutdown;
+
     loop {
-        timer.tick().await;
-        if !state.paused.load(Ordering::SeqCst) {
-            if let Err(e) = poll_reddit(&state, &bot, &auth).await {
-                tracing::error!("Reddit poll error: {e:#}");
+        tokio::select! {
+            _ = timer.tick() => {
+                if !state.paused.load(Ordering::SeqCst) {
+                    if let Err(e) = poll_reddit(&state, &bot, &auth).await {
+                        tracing::error!("Reddit poll error: {e:#}");
+                    }
+                }
+            }
+            _ = shutdown.changed() => {
+                tracing::info!("Reddit poller shutting down");
+                break;
             }
         }
     }
 }
 
-async fn twitter_poll_loop(state: Arc<AppState>, bot: Bot, auth: TwitterAuth, interval: Duration) {
+async fn twitter_poll_loop(
+    state: Arc<AppState>,
+    bot: Bot,
+    auth: TwitterAuth,
+    interval: Duration,
+    shutdown: watch::Receiver<bool>,
+) {
     let mut timer = tokio::time::interval(interval);
+    let mut shutdown = shutdown;
+
     loop {
-        timer.tick().await;
-        if !state.paused.load(Ordering::SeqCst) {
-            if let Err(e) = poll_twitter(&state, &bot, &auth).await {
-                tracing::error!("Twitter poll error: {e:#}");
+        tokio::select! {
+            _ = timer.tick() => {
+                if !state.paused.load(Ordering::SeqCst) {
+                    if let Err(e) = poll_twitter(&state, &bot, &auth).await {
+                        tracing::error!("Twitter poll error: {e:#}");
+                    }
+                }
+            }
+            _ = shutdown.changed() => {
+                tracing::info!("Twitter poller shutting down");
+                break;
             }
         }
     }
@@ -87,7 +120,7 @@ async fn twitter_poll_loop(state: Arc<AppState>, bot: Bot, auth: TwitterAuth, in
 async fn poll_reddit(
     state: &Arc<AppState>,
     bot: &Bot,
-    auth: &Arc<RedditAuth>,
+    auth: &RedditAuth,
 ) -> anyhow::Result<()> {
     let auth_for_blocking = auth.clone();
     let notifications = tokio::task::spawn_blocking(move || {
