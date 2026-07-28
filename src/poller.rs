@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -63,6 +64,30 @@ pub async fn run(state: Arc<AppState>, bot: Bot, shutdown: watch::Receiver<bool>
 }
 
 
+async fn retry_with_backoff<F, Fut, T>(label: &'static str, f: F) -> anyhow::Result<T>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = anyhow::Result<T>>,
+{
+    let delays = [Duration::from_secs(1), Duration::from_secs(2)];
+
+    for (i, delay) in delays.iter().enumerate() {
+        match f().await {
+            Ok(val) => return Ok(val),
+            Err(e) => {
+                tracing::warn!("{label} attempt {} failed, retrying in {delay:?}: {e:#}", i + 1);
+                tokio::time::sleep(*delay).await;
+            }
+        }
+    }
+
+    let result = f().await;
+    if let Err(ref e) = result {
+        tracing::error!("{label} failed after {} attempts: {e:#}", delays.len() + 1);
+    }
+    result
+}
+
 async fn reddit_poll_loop(
     state: Arc<AppState>,
     bot: Bot,
@@ -77,7 +102,8 @@ async fn reddit_poll_loop(
         tokio::select! {
             _ = timer.tick() => {
                 if !state.paused.load(Ordering::SeqCst) {
-                    if let Err(e) = poll_reddit(&state, &bot, &auth).await {
+                    let result = retry_with_backoff("Reddit poll", || poll_reddit(&state, &bot, &auth)).await;
+                    if let Err(e) = result {
                         tracing::error!("Reddit poll error: {e:#}");
                     }
                 }
@@ -104,7 +130,8 @@ async fn twitter_poll_loop(
         tokio::select! {
             _ = timer.tick() => {
                 if !state.paused.load(Ordering::SeqCst) {
-                    if let Err(e) = poll_twitter(&state, &bot, &auth).await {
+                    let result = retry_with_backoff("Twitter poll", || poll_twitter(&state, &bot, &auth)).await;
+                    if let Err(e) = result {
                         tracing::error!("Twitter poll error: {e:#}");
                     }
                 }
