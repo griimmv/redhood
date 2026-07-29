@@ -18,17 +18,14 @@ conventional_commits = true
 filter_unconventional = false
 commit_preprocessors = [
   { pattern = '\((\w+\s?)\)', replace = "" },
-  { pattern = '^(\w*)(\w)(.*)', replace = "{{lower|default(text=\"$1\")}}$2$3" },
 ]
-
-[git.conventional_commits]
-types = [
-  { type = "feat", group = "Features", description = "New features" },
-  { type = "fix", group = "Bug Fixes", description = "Bug fixes" },
-  { type = "docs", group = "Documentation", description = "Documentation changes" },
-  { type = "refactor", group = "Refactoring", description = "Code restructuring" },
-  { type = "perf", group = "Performance", description = "Performance improvements" },
-  { type = "test", group = "Testing", description = "Test additions or changes" },
-  { type = "chore", group = "Housekeeping", description = "Build process or tooling changes" },
-  { type = "style", group = "Styling", description = "Code style changes" },
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^perf", group = "Performance" },
+  { message = "^test", group = "Testing" },
+  { message = "^chore", group = "Housekeeping" },
+  { message = "^style", group = "Styling" },
 ]
