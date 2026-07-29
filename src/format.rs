@@ -14,7 +14,8 @@ pub fn format_reddit_message(kind: &str, data: &Value) -> String {
             let author = data["author"].as_str().unwrap_or("unknown");
             let subreddit = data["subreddit"].as_str().unwrap_or("unknown");
             let body = data["body"].as_str().unwrap_or("");
-            let context = data["context"].as_str().unwrap_or("/r/{subreddit}");
+            let context_default = format!("/r/{}", subreddit);
+            let context = data["context"].as_str().unwrap_or(&context_default);
             format!(
                 "\u{1F4AC} Reddit reply from **{author}** in r/{subreddit}\n\n{body}\n\n[View](https://reddit.com{context})"
             )
