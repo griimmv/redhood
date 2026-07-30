@@ -118,10 +118,19 @@ async fn cmd_video(bot: Bot, msg: Message, state: Arc<AppState>) {
         }
     };
 
-    let path = match crate::video::pick_random(Path::new(base_dir)) {
-        Ok(Some(p)) => p,
-        Ok(None) => {
+    let base_dir = base_dir.clone();
+    let path = match tokio::task::spawn_blocking(move || {
+        crate::video::pick_random(Path::new(&base_dir))
+    })
+    .await
+    {
+        Ok(Ok(Some(p))) => p,
+        Ok(Ok(None)) => {
             let _ = bot.send_message(msg.chat.id, "No video files found in the configured directory.").await;
+            return;
+        }
+        Ok(Err(e)) => {
+            let _ = bot.send_message(msg.chat.id, format!("Error scanning videos: {e}")).await;
             return;
         }
         Err(e) => {
