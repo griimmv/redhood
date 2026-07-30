@@ -15,7 +15,10 @@ pub fn format_reddit_message(kind: &str, data: &Value) -> String {
             let subreddit = data["subreddit"].as_str().unwrap_or("unknown");
             let body = data["body"].as_str().unwrap_or("");
             let context_default = format!("/r/{}", subreddit);
-            let context = data["context"].as_str().unwrap_or(&context_default);
+            let context = data["context"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&context_default);
             format!(
                 "\u{1F4AC} Reddit reply from **{author}** in r/{subreddit}\n\n{body}\n\n[View](https://reddit.com{context})"
             )
@@ -97,6 +100,17 @@ mod tests {
         let data = json!({});
         let result = format_reddit_message("t4", &data);
         assert!(result.contains("unknown"));
+    }
+
+    #[test]
+    fn format_reddit_message_empty_context() {
+        let data = json!({
+            "author": "dave",
+            "subreddit": "test",
+            "context": "",
+        });
+        let result = format_reddit_message("t1", &data);
+        assert!(result.contains("https://reddit.com/r/test"));
     }
 
     #[test]
