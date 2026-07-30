@@ -37,10 +37,19 @@ fn collect_videos(dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
 
         let path = entry.path();
 
-        if path.is_dir() {
-            collect_videos(&path, out)?;
-        } else if is_video_file(&path) {
-            out.push(path);
+        // checks file type (prevent symlink infinite recursion)
+        match entry.file_type() {
+            Ok(ft) if ft.is_dir() => {
+                collect_videos(&path, out)?;
+            }
+            Ok(_) => {
+                if is_video_file(&path) {
+                    out.push(path);
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Cannot read entry metadata {:?}: {e}", path);
+            }
         }
     }
 
