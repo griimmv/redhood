@@ -31,10 +31,10 @@ jobs:
           sed -i 's/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
           cargo check
 
-      - uses: orhun/git-cliff-action@v3
+      - uses: taiki-e/install-action@v2
         with:
-          config: cliff.toml
-          args: -o CHANGELOG.md
+          tool: git-cliff
+      - run: git-cliff --config cliff.toml -o CHANGELOG.md
 
   binaries:
     needs: version
@@ -127,10 +127,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: orhun/git-cliff-action@v3
+      - uses: taiki-e/install-action@v2
         with:
-          config: cliff.toml
-          args: --latest --strip header -o /tmp/release_body.md
+          tool: git-cliff
+      - run: git-cliff --config cliff.toml --latest --strip header -o /tmp/release_body.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
