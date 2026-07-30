@@ -5,6 +5,7 @@ mod format;
 mod poller;
 mod reddit;
 mod twitter;
+mod video;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
