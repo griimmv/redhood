@@ -22,6 +22,10 @@ poll_interval_secs = 60
 [database]
 path = "redhood.db"
 
+# Optional — comment out or remove this entire section to disable the /video command
+[video]
+base_dir = "/path/to/your/videos"
+
 [webhook]
 host = "0.0.0.0"
 port = 8080

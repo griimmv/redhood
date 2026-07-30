@@ -6,6 +6,7 @@ pub struct Config {
     pub telegram: TelegramConfig,
     pub reddit: Option<RedditConfig>,
     pub twitter: Option<TwitterConfig>,
+    pub video: Option<VideoConfig>,
     pub database: DatabaseConfig,
     pub webhook: WebhookConfig,
 }
@@ -41,6 +42,11 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct VideoConfig {
+    pub base_dir: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct WebhookConfig {
     pub host: String,
     pub port: u16,
@@ -69,6 +75,13 @@ impl Config {
             anyhow::ensure!(t.poll_interval_secs > 0, "twitter.poll_interval_secs must be > 0");
         }
 
+        if let Some(ref v) = self.video {
+            anyhow::ensure!(!v.base_dir.is_empty(), "video.base_dir must not be empty");
+            let dir = std::path::Path::new(&v.base_dir);
+            anyhow::ensure!(dir.exists(), "video.base_dir does not exist: {}", v.base_dir);
+            anyhow::ensure!(dir.is_dir(), "video.base_dir is not a directory: {}", v.base_dir);
+        }
+
         anyhow::ensure!(!self.database.path.is_empty(), "database.path must not be empty");
 
         anyhow::ensure!(!self.webhook.host.is_empty(), "webhook.host must not be empty");
@@ -94,6 +107,12 @@ impl Config {
                 && !Self::is_placeholder(&r.client_secret)
                 && !Self::is_placeholder(&r.username)
                 && !Self::is_placeholder(&r.password)
+        })
+    }
+
+    pub fn video_ok(&self) -> Option<bool> {
+        self.video.as_ref().map(|v| {
+            !Self::is_placeholder(&v.base_dir)
         })
     }
 
@@ -132,6 +151,7 @@ mod tests {
                 user_id: "123".into(),
                 poll_interval_secs: 60,
             }),
+            video: None,
             database: DatabaseConfig { path: "redhood.db".into() },
             webhook: WebhookConfig {
                 host: "0.0.0.0".into(),
