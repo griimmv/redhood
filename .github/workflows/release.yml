@@ -13,6 +13,8 @@ env:
 jobs:
   version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -39,6 +41,8 @@ jobs:
 
   binaries:
     needs: version
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
