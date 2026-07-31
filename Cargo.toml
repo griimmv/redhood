@@ -3,6 +3,14 @@ name = "redhood"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.release]
+pre-release-hook = ["git-cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}"]
+tag-name = "v{{version}}"
+tag-message = "Release {{version}}"
+push = true
+sign-commit = false
+sign-tag = false
+
 [dependencies]
 teloxide = { version = "0.17", default-features = false, features = ["macros", "webhooks", "webhooks-axum", "rustls"] }
 axum = "0.8"
