@@ -55,7 +55,7 @@ pub struct WebhookConfig {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".into());
+        let path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "redhood/config.toml".into());
         let content = std::fs::read_to_string(&path)?;
         let cfg: Self = toml::from_str(&content)?;
         cfg.validate()?;

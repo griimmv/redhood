@@ -1,4 +1,3 @@
 /target
-/config.toml
+/redhood/config.toml
 *.db
-.env

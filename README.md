@@ -31,21 +31,28 @@ cargo build --release
 
 ## Configuration
 
-### 1. Copy the example config
+### 1. Fetch the example config
 
 ```bash
-cp config.example.toml config.toml
+mkdir -p redhood
+curl -L -o redhood/config.toml https://raw.githubusercontent.com/griimmv/redhood/main/config.example.toml
 ```
 
-### 2. Fill in `config.toml`
+### 2. Fill in `redhood/config.toml`
 
-### 3. Set up environment (optional)
+### 3. Environment variables
+
+The Docker setup (docker-compose.yml) sets `RUST_LOG` and `CONFIG_PATH`
+itself; you don't need a `.env` file. For bare-metal runs, export them
+manually:
 
 ```bash
-# .env file
-RUST_LOG=info,redhood=debug
-CONFIG_PATH=config.toml
+export RUST_LOG=info,redhood=debug
+export CONFIG_PATH=redhood/config.toml
 ```
+
+The default `CONFIG_PATH` is already `redhood/config.toml`, so from the
+repo root a plain `cargo run` works without exporting anything.
 <br>
 
 ## Getting API Credentials
@@ -77,7 +84,7 @@ CONFIG_PATH=config.toml
 # Terminal 1: Start ngrok
 ngrok http 8080
 
-# Terminal 2: Update config.toml public_url with the ngrok HTTPS URL
+# Terminal 2: Update redhood/config.toml public_url with the ngrok HTTPS URL
 # Then start the bot
 RUST_LOG=debug cargo run
 ```
@@ -91,7 +98,7 @@ cargo build --release
 # Copy files to /opt/redhood
 sudo mkdir -p /opt/redhood
 sudo cp target/release/redhood /opt/redhood/
-sudo cp config.toml /opt/redhood/
+sudo cp redhood/config.toml /opt/redhood/
 
 # Edit redhood.service if needed, then install
 sudo cp redhood.service /etc/systemd/system/
@@ -221,7 +228,7 @@ src/
 - [x] Main entry point (`main.rs`)
 - [x] systemd service unit (`redhood.service`)
 - [x] **Compile and fix all errors** (`cargo check`)
-- [ ] Create actual `config.toml` from example
+- [ ] Create actual `redhood/config.toml` from example
 - [ ] Test Reddit API connection
 - [ ] Test Twitter API connection
 - [ ] Test Telegram webhook via ngrok

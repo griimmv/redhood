@@ -1,0 +1,17 @@
+services:
+  redhood:
+    image: ghcr.io/griimmv/redhood:latest
+    build: .
+    container_name: redhood
+    restart: unless-stopped
+    environment:
+      RUST_LOG: info,redhood=debug
+      CONFIG_PATH: /app/config.toml
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./redhood/config.toml:/app/config.toml:ro
+      - redhood-data:/app/data
+
+volumes:
+  redhood-data:
