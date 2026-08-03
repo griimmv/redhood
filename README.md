@@ -15,6 +15,34 @@ A Telegram bot daemon that forwards **Reddit inbox messages** and **X/Twitter me
 
 ## Installation
 
+### Docker (docker compose)
+
+Requires [Docker](https://docs.docker.com/engine/install/) with the compose
+plugin. The images are pushed to GHCR by the release pipeline.
+
+```bash
+# Bash
+curl -o docker-compose.yml https://raw.githubusercontent.com/griimmv/redhood/main/docker-compose.yml
+docker compose pull
+```
+
+```powershell
+# PowerShell
+curl.exe -o docker-compose.yml https://raw.githubusercontent.com/griimmv/redhood/main/docker-compose.yml
+docker compose pull
+```
+
+Make sure `redhood/config.toml` is filled in first — see
+[Configuration](#configuration). Then start the bot:
+
+```bash
+docker compose up -d
+```
+
+Persistent state (SQLite, dedup, etc.) lives in the `redhood-data` volume —
+recreate the container freely. Point your tunnel at port 8080 and put the
+public HTTPS URL in `redhood/config.toml`'s `[webhook] public_url`.
+
 ### Building it yourself
 
 ```bash
@@ -35,7 +63,7 @@ cargo build --release
 
 ```bash
 mkdir -p redhood
-curl -L -o redhood/config.toml https://raw.githubusercontent.com/griimmv/redhood/main/config.example.toml
+curl -o redhood/config.toml https://raw.githubusercontent.com/griimmv/redhood/main/config.example.toml
 ```
 
 ### 2. Fill in `redhood/config.toml`
@@ -57,11 +85,19 @@ repo root a plain `cargo run` works without exporting anything.
 
 ## Getting API Credentials
 
-### Telegram
+### Telegram bot token
 1. Message [@BotFather](https://t.me/BotFather) on Telegram
 2. Run `/newbot` and follow instructions
-3. Copy the bot token
-4. Find your user ID by messaging [@userinfobot](https://t.me/userinfobot)
+3. Copy the bot token and fill TELEGRAM_BOT_TOKEN
+
+### Get your owner id
+4. Run the bot once, then send it any message (e.g. `/start`)
+5. Query Telegram's update endpoint and search the response for the owner id:
+   ```bash
+   curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getUpdates"
+   ```
+6. Copy the integer from `message.from.id` (e.g. `123456789`) into
+   `redhood/config.toml` as `telegram.owner_chat_id`
 
 ### Reddit (Script App)
 1. Go to https://www.reddit.com/prefs/apps
@@ -81,12 +117,11 @@ repo root a plain `cargo run` works without exporting anything.
 ## Running Locally (with ngrok)
 
 ```bash
-# Terminal 1: Start ngrok
+# Start ngrok
 ngrok http 8080
 
-# Terminal 2: Update redhood/config.toml public_url with the ngrok HTTPS URL
+# Update redhood/config.toml public_url with the ngrok HTTPS URL
 # Then start the bot
-RUST_LOG=debug cargo run
 ```
 
 ## Running as a Daemon (systemd)
