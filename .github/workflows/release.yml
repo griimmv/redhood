@@ -27,18 +27,6 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Bump version in Cargo.toml
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          sed -i 's/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
-          cargo check
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: git-cliff
-      - run: git-cliff --config cliff.toml -o CHANGELOG.md
-
   binaries:
     needs: version
     permissions:
@@ -126,17 +114,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Download all binary artifacts
         uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true
           pattern: redhood-*
-
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
 
       - uses: taiki-e/install-action@v2
         with:
