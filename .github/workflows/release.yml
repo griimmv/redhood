@@ -114,17 +114,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Download all binary artifacts
         uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true
           pattern: redhood-*
-
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
 
       - uses: taiki-e/install-action@v2
         with:
